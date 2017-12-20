@@ -1,14 +1,9 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package org.icn.graphpubsub.graphpartitioning;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Objects;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -17,52 +12,27 @@ import java.util.function.Consumer;
  */
 public class GraphNode {
 
-    private final String name;
-    /**
-     * Individual weight: the # of messages sent to the node itself Incoming
-     * weight: the # of messages from other RPs that send to the node Total
-     * weight: the # of messages that are sent to this node because of itself
-     * and ancestors the # of messages this RP has to process for this node
-     * Outgoing count: the # of *child nodes* that are on other RPS outgoing
-     * weight = outgoing count * total weight
-     */
-    private final int individualWeight, incomingWeight, outgoingCount;
-    private int totalWeight;
+    private final HashMap<String, Object> data = new HashMap<>();
 
-    public GraphNode(String name, int individualWeight, int incomingWeight, int outgoingCount) {
-        this.name = name;
-        this.individualWeight = individualWeight;
-        this.incomingWeight = incomingWeight;
-        this.outgoingCount = outgoingCount;
+    public GraphNode() {
     }
 
-    public String getName() {
-        return name;
+    public GraphNode(String initialKey, Object initialValue) {
+        data.put(initialKey, initialValue);
     }
 
-    public int getIndividualWeight() {
-        return individualWeight;
+    public GraphNode(Iterable<Map.Entry<String, Object>> initialValues) {
+        for (Map.Entry<String, Object> initialValue : initialValues) {
+            data.put(initialValue.getKey(), initialValue.getValue());
+        }
     }
 
-    public int getTotalWeight() {
-        return totalWeight;
+    public Object putValue(String key, Object value) {
+        return data.put(key, value);
     }
 
-    public int getIncomingWeight() {
-        return incomingWeight;
-    }
-
-    public int getOutgoingCount() {
-        return outgoingCount;
-    }
-
-    public int getOutgoingWeight() {
-        return outgoingCount * totalWeight;
-    }
-
-    public int addTotalWeight(int weight) {
-        totalWeight += weight;
-        return totalWeight;
+    public Object getValue(String key) {
+        return data.get(key);
     }
 
     private final HashSet<GraphNode> parents = new HashSet<>();
@@ -92,35 +62,12 @@ public class GraphNode {
         children.forEach(action);
     }
 
-    @Override
-    public int hashCode() {
-        int hash = 5;
-        hash = 97 * hash + Objects.hashCode(this.name);
-        hash = 97 * hash + this.individualWeight;
-        return hash;
+    public Iterator<GraphNode> getParents() {
+        return parents.iterator();
     }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        final GraphNode other = (GraphNode) obj;
-        if (this.individualWeight != other.individualWeight) {
-            return false;
-        }
-        return Objects.equals(this.name, other.name);
+    
+    
+    public Iterator<GraphNode> getChildren() {
+        return children.iterator();
     }
-
-    @Override
-    public String toString() {
-        return "GraphNode{" + "name=" + name + ", individualWeight=" + individualWeight + ", totalWeight=" + totalWeight + '}';
-    }
-
 }

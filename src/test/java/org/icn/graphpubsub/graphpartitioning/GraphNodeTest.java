@@ -6,6 +6,7 @@
 package org.icn.graphpubsub.graphpartitioning;
 
 import java.util.HashMap;
+import java.util.List;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -39,41 +40,30 @@ public class GraphNodeTest {
 
     @Test
     public void test1() {
-        HashMap<Character, GraphNode> nodes = new HashMap<>();
-        int[] weights = new int[]{4, 2, 3, 8, 4, 16, 26, 2, 1};
-        char[] linkFroms = new char[]{'a', 'a', 'a', 'b', 'c', 'c', 'c', 'd', 'e', 'h'};
-        char[] linkTos = new char[]{'b', 'c', 'd', 'e', 'e', 'f', 'g', 'h', 'i', 'g'};
-        for (int i = 0; i < weights.length; i++) {
-            Character c = (char) ('a' + i);
-            GraphNode gn = new GraphNode(c.toString(), weights[i], 0, 0);
-            nodes.put(c, gn);
-        }
-        for (int i = 0; i < linkFroms.length; i++) {
-            nodes.get(linkFroms[i]).addChild(nodes.get(linkTos[i]));
-        }
-        System.out.println("========Parents========");
-        nodes.values().forEach(n -> {
-            System.out.printf("%s%n", n);
-            n.forEachParent(p -> System.out.printf("\t%s%n", p));
-        });
+        HashMap<Integer, GraphNode> nodes = new HashMap<>();
+        nodes.put(2, new GraphNode("name", 2));
+        nodes.put(3, new GraphNode("name", 3));
+        nodes.put(5, new GraphNode("name", 5));
+        nodes.put(7, new GraphNode("name", 7));
+        nodes.put(8, new GraphNode("name", 8));
+        nodes.put(9, new GraphNode("name", 9));
+        nodes.put(10, new GraphNode("name", 10));
+        nodes.put(11, new GraphNode("name", 11));
 
-        System.out.println("========Children========");
-        nodes.values().forEach(n -> {
-            System.out.printf("%s%n", n);
-            n.forEachChildren(c -> System.out.printf("\t%s%n", c));
-        });
+        nodes.get(3).addChild(nodes.get(8));
+        nodes.get(3).addChild(nodes.get(10));
+        nodes.get(5).addChild(nodes.get(11));
+        nodes.get(7).addChild(nodes.get(8));
+        nodes.get(7).addChild(nodes.get(11));
+        nodes.get(8).addChild(nodes.get(9));
+        nodes.get(2).addChild(nodes.get(7));
+        nodes.get(11).addChild(nodes.get(2));
+        nodes.get(11).addChild(nodes.get(9));
+        nodes.get(11).addChild(nodes.get(10));
 
-        System.out.println("========Reachable========");
-        nodes.values().forEach(n -> {
-            System.out.printf("%s%n", n);
-            GraphNodeAlgorithms.getReachableNodes(n).forEach(r -> System.out.printf("\t%s%n", r));
-        });
-
-        System.out.println("========TotalWeights========");
-        GraphNodeAlgorithms.calculateTotalWeight(nodes.values());
-        nodes.values().forEach(n -> {
-            System.out.printf("%s%n", n);
-        });
+        List<GraphNode> sortResult = GraphNodeAlgorithms.topologicalSort(nodes.values());
+        sortResult.forEach((graphNode) -> System.out.printf("%s ", graphNode.getValue("name")));
+        System.out.println();
     }
 
 }
