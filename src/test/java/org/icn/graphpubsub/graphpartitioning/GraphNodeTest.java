@@ -5,8 +5,8 @@
  */
 package org.icn.graphpubsub.graphpartitioning;
 
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -56,12 +56,12 @@ public class GraphNodeTest {
         nodes.get(7).addChild(nodes.get(8));
         nodes.get(7).addChild(nodes.get(11));
         nodes.get(8).addChild(nodes.get(9));
-        nodes.get(2).addChild(nodes.get(7));
         nodes.get(11).addChild(nodes.get(2));
         nodes.get(11).addChild(nodes.get(9));
         nodes.get(11).addChild(nodes.get(10));
 
-        List<GraphNode> sortResult = GraphNodeAlgorithms.topologicalSort(nodes.values());
+        Collection<GraphNode> sortResult = GraphNodeAlgorithms.topologicalSort(nodes.values());
+//        Collections.reverse(sortResult);
         sortResult.forEach((graphNode) -> System.out.printf("%s ", graphNode.getValue("name")));
         System.out.println();
     }
