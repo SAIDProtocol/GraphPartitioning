@@ -18,7 +18,6 @@ import java.util.LinkedList;
 public class GraphNodeAlgorithms {
 
 //    private static final String GRAPH_DATA_PREFIX = GraphNodeAlgorithms.class.getName();
-
     /**
      * Output a list, sorted based on the graph.
      *
@@ -77,7 +76,7 @@ public class GraphNodeAlgorithms {
 
     /**
      * Find all the reachable nodes from root with BFS.
-     * 
+     *
      * @param root the root node to start with.
      * @return the reachable nodes.
      */
@@ -93,7 +92,10 @@ public class GraphNodeAlgorithms {
                 continue;
             }
             results.add(todo);
-            todo.forEachChildren(c -> todos.addLast(c));
+            Iterator<GraphNode> children = todo.getChildren();
+            while(children.hasNext()) {
+                todos.add(children.next());
+            }
         }
         return results;
     }

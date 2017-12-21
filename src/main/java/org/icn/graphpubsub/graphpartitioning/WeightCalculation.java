@@ -10,7 +10,10 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -25,9 +28,24 @@ public class WeightCalculation {
     public static final String WEIGHT_CALCULATION_PREFIX = WeightCalculation.class.getName() + "/";
     public static final String NAME = WEIGHT_CALCULATION_PREFIX + "NAME";
     public static final String ORIG_WEIGHT = WEIGHT_CALCULATION_PREFIX + "W_ORI";
-    public static final String INTERMEDIATE_WEIGHT = WEIGHT_CALCULATION_PREFIX + "W_INT";
-    public static final String FINAL_WEIGHT = WEIGHT_CALCULATION_PREFIX + "W_FIN";
-    public static final String PARTITION = WEIGHT_CALCULATION_PREFIX + "PARTITION";
+    public static final String PARTITION_WEIGHT_OBJECT = WEIGHT_CALCULATION_PREFIX + "W_PART";
+
+    public static class WeightObject {
+
+        public String partition;
+        public int intermediateWeight, finalWeight;
+
+        public WeightObject(String partition) {
+            this.partition = partition;
+            intermediateWeight = finalWeight = 0;
+        }
+    }
+
+    public static class PartitionObject {
+
+        public int multicastCount;
+        public HashMap<String, Integer> unicastCounts = new HashMap<>();
+    }
 
     public static HashMap<String, GraphNode> readGraphNodes(Reader nodeReader) throws IOException {
         HashMap<String, GraphNode> nodes = new HashMap<>();
@@ -102,13 +120,16 @@ public class WeightCalculation {
                     LOG.log(Level.INFO, "Skipping line {0}, cannot find child node: \"{1}\"", new Object[]{lineId, line});
                     continue;
                 }
-                parent.addChild(child);
+                if (!parent.addChild(child)) {
+                    LOG.log(Level.INFO, "Skipping line {0}, parent already has the child: \"{1}\"", new Object[]{lineId, line});
+                }
             }
         }
     }
 
-    public static HashMap<String, Collection<GraphNode>> readGraphPartitions(Reader partitionReader, HashMap<String, GraphNode> nodes) throws IOException {
+    public static HashMap<String, Collection<GraphNode>> readGraphPartitions(Reader partitionReader, HashMap<String, GraphNode> nodes, String partitionSuffix) throws IOException {
         HashMap<String, Collection<GraphNode>> partitions = new HashMap<>();
+        String partitionString = PARTITION_WEIGHT_OBJECT + partitionSuffix;
         String line;
         int lineId = 0;
         try (BufferedReader r = new BufferedReader(partitionReader)) {
@@ -135,11 +156,11 @@ public class WeightCalculation {
                     LOG.log(Level.INFO, "Skipping line {0}, cannot find node: \"{1}\"", new Object[]{lineId, line});
                     continue;
                 }
-                if (node.getValue(PARTITION) != null) {
+                if (node.getValue(partitionString) != null) {
                     LOG.log(Level.INFO, "Skipping line {0}, node already assigned to a partition: \"{1}\"", new Object[]{lineId, line});
                     continue;
                 }
-                node.putValue(PARTITION, partitionName);
+                node.putValue(partitionString, new WeightObject(partitionName));
                 Collection<GraphNode> partitionNodes = partitions.get(partitionName);
                 if (partitionNodes == null) {
                     partitions.put(partitionName, partitionNodes = new LinkedList<>());
@@ -150,11 +171,68 @@ public class WeightCalculation {
         return partitions;
     }
 
-    public static void calculateWeight(HashMap<String, GraphNode> nodes, HashMap<String, Collection<GraphNode>> partitions) {
+    public static void calculateWeight(HashMap<String, GraphNode> nodes, String partitionSuffix) {
         Collection<GraphNode> sortedNodes = GraphNodeAlgorithms.topologicalSort(nodes.values());
+        String partitionString = PARTITION_WEIGHT_OBJECT + partitionSuffix;
+
         sortedNodes.forEach(n -> System.out.printf("%s ", n.getValue(NAME)));
         System.out.println();
-        System.out.println("=============================");
+
+        Consumer<String> nodeStatusPrinter = (str) -> {
+            for (GraphNode value : nodes.values()) {
+                WeightObject wo = (WeightObject) value.getValue(partitionString);
+                System.out.printf("  %s I=%d, F=%d%n", value.getValue(NAME), wo.intermediateWeight, wo.finalWeight);
+            }
+        };
+
+        for (GraphNode node : nodes.values()) {
+            WeightObject obj = (WeightObject) node.getValue(partitionString);
+            obj.intermediateWeight = (Integer) node.getValue(ORIG_WEIGHT);
+            obj.finalWeight = 0;
+        }
+
+        if (LOG.isLoggable(Level.INFO)) {
+            LOG.log(Level.INFO, "Init");
+            nodeStatusPrinter.accept(null);
+        }
+
+        for (GraphNode node : sortedNodes) {
+            WeightObject obj = (WeightObject) node.getValue(partitionString);
+            int weightToPropagate = obj.intermediateWeight;
+            obj.intermediateWeight = 0;
+
+            // BFS in partition and add weightToPropagate to finalWeight
+            // add weightToPropagate to intermediateWeight when crossing partition
+            HashSet<GraphNode> traversed = new HashSet<>();
+            LinkedList<GraphNode> todos = new LinkedList<>();
+            todos.add(node);
+            while (!todos.isEmpty()) {
+                GraphNode todo = todos.removeFirst();
+                if (traversed.contains(todo)) {
+                    continue;
+                }
+                WeightObject traversingObj = (WeightObject) todo.getValue(partitionString);
+                // move this line into the "same partition" block to count the unoptimized value.
+                traversed.add(todo);
+                if (traversingObj.partition.equals(obj.partition)) { // same partition
+                    traversingObj.finalWeight += weightToPropagate;
+                    Iterator<GraphNode> children = todo.getChildren();
+                    while (children.hasNext()) {
+                        todos.add(children.next());
+                    }
+                } else { // different partition
+                    traversingObj.intermediateWeight += weightToPropagate;
+                }
+            }
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.log(Level.INFO, "Propagated {0}, weight {1}", new Object[]{node.getValue(NAME), weightToPropagate});
+                nodeStatusPrinter.accept(null);
+            }
+        }
+        if (LOG.isLoggable(Level.INFO)) {
+            LOG.log(Level.INFO, "Final");
+            nodeStatusPrinter.accept(null);
+        }
 
     }
 

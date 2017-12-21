@@ -13,6 +13,8 @@ import java.io.PrintStream;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -31,6 +33,8 @@ public class WeightCalculationTest {
 
     @BeforeClass
     public static void setUpClass() {
+        // uncomment the following line to show the calculation detail
+//        Logger.getLogger(WeightCalculation.class.getName()).setLevel(Level.ALL);;
     }
 
     @AfterClass
@@ -119,7 +123,7 @@ public class WeightCalculationTest {
         return nodes;
     }
 
-    public HashMap<String, Collection<GraphNode>> testGetGraph1Partition1(HashMap<String, GraphNode> nodes) throws IOException {
+    public HashMap<String, Collection<GraphNode>> testGetGraph1Partition1(HashMap<String, GraphNode> nodes, String partitionSuffix) throws IOException {
         try (ByteArrayOutputStream partitionOutput = new ByteArrayOutputStream()) {
             try (PrintStream ps = new PrintStream(partitionOutput)) {
                 ps.print("v6 0\n"
@@ -145,7 +149,38 @@ public class WeightCalculationTest {
                 ps.flush();
             }
             try (InputStreamReader linkReader = new InputStreamReader(new ByteArrayInputStream(partitionOutput.toByteArray()))) {
-                return readGraphPartitions(linkReader, nodes);
+                return readGraphPartitions(linkReader, nodes, partitionSuffix);
+            }
+        }
+    }
+
+    public HashMap<String, Collection<GraphNode>> testGetGraph1Partition2(HashMap<String, GraphNode> nodes, String partitionSuffix) throws IOException {
+        try (ByteArrayOutputStream partitionOutput = new ByteArrayOutputStream()) {
+            try (PrintStream ps = new PrintStream(partitionOutput)) {
+                ps.print("v6 1\n"
+                        + "v7 0\n"
+                        + "v8 0\n"
+                        + "v9 0\n"
+                        + "v10 0\n"
+                        + "v20 0\n"
+                        + "v12 1\n"
+                        + "v11 1\n"
+                        + "v14 0\n"
+                        + "v13 1\n"
+                        + "v16 1\n"
+                        + "v1 0\n"
+                        + "v15 0\n"
+                        + "v2 0\n"
+                        + "v18 1\n"
+                        + "v3 1\n"
+                        + "v17 0\n"
+                        + "v4 1\n"
+                        + "v5 0\n"
+                        + "v19 0");
+                ps.flush();
+            }
+            try (InputStreamReader linkReader = new InputStreamReader(new ByteArrayInputStream(partitionOutput.toByteArray()))) {
+                return readGraphPartitions(linkReader, nodes, partitionSuffix);
             }
         }
     }
@@ -158,7 +193,7 @@ public class WeightCalculationTest {
         System.out.println("=============================");
         AtomicInteger count = new AtomicInteger();
         nodes.values().forEach(n -> {
-            n.forEachChildren(c -> {
+            n.forEachChild(c -> {
                 System.out.printf("%s->%s%n", n.getValue(NAME), c.getValue(NAME));
                 count.incrementAndGet();
             });
@@ -166,14 +201,59 @@ public class WeightCalculationTest {
         System.out.printf("Links:%d%n", count.get());
         System.out.println("=============================");
         HashMap<String, Collection<GraphNode>> partitions;
-        partitions = testGetGraph1Partition1(nodes);
+        partitions = testGetGraph1Partition2(nodes, "P1");
         System.out.printf("Partitions:%d%n", partitions.size());
         partitions.forEach((name, pNodes) -> {
             System.out.printf("partition \"%s\"%n", name);
             pNodes.forEach(n -> System.out.printf("  %s%n", n.getValue(NAME)));
         });
         System.out.println("=============================");
-        calculateWeight(nodes, partitions);
+        calculateWeight(nodes, "P1");
+    }
+
+    @Test
+    public void test2() {
+        String partitionSuffix = "P1";
+        String partitionString = PARTITION_WEIGHT_OBJECT + partitionSuffix;
+        HashMap<String, GraphNode> nodes = new HashMap<>();
+
+        GraphNode node;
+        nodes.put("A", node = new GraphNode(NAME, "A"));
+        node.putValue(ORIG_WEIGHT, 1);
+        node.putValue(partitionString, new WeightObject("1"));
+        nodes.put("B", node = new GraphNode(NAME, "B"));
+        node.putValue(ORIG_WEIGHT, 10);
+        node.putValue(partitionString, new WeightObject("2"));
+        nodes.put("C", node = new GraphNode(NAME, "C"));
+        node.putValue(ORIG_WEIGHT, 100);
+        node.putValue(partitionString, new WeightObject("2"));
+        nodes.put("D", node = new GraphNode(NAME, "D"));
+        node.putValue(ORIG_WEIGHT, 1000);
+        node.putValue(partitionString, new WeightObject("1"));
+        nodes.put("E", node = new GraphNode(NAME, "E"));
+        node.putValue(ORIG_WEIGHT, 10000);
+        node.putValue(partitionString, new WeightObject("1"));
+        nodes.get("A").addChild(nodes.get("B"));
+        nodes.get("A").addChild(nodes.get("C"));
+        nodes.get("A").addChild(nodes.get("D"));
+        nodes.get("B").addChild(nodes.get("C"));
+        nodes.get("D").addChild(nodes.get("E"));
+
+        System.out.printf("Nodes:%d%n", nodes.size());
+        nodes.values().forEach(n -> System.out.printf("Name=%s, Weight=%d, Partition=%s%n",
+                n.getValue(NAME), n.getValue(ORIG_WEIGHT), ((WeightObject) n.getValue(partitionString)).partition));
+        System.out.println("=============================");
+        AtomicInteger count = new AtomicInteger();
+        nodes.values().forEach(n -> {
+            n.forEachChild(c -> {
+                System.out.printf("%s->%s%n", n.getValue(NAME), c.getValue(NAME));
+                count.incrementAndGet();
+            });
+        });
+        System.out.printf("Links:%d%n", count.get());
+        System.out.println("=============================");
+        calculateWeight(nodes, partitionSuffix);
+
     }
 
 }

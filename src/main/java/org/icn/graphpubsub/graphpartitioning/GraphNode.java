@@ -58,7 +58,7 @@ public class GraphNode {
         parents.forEach(action);
     }
 
-    public void forEachChildren(Consumer<? super GraphNode> action) {
+    public void forEachChild(Consumer<? super GraphNode> action) {
         children.forEach(action);
     }
 
