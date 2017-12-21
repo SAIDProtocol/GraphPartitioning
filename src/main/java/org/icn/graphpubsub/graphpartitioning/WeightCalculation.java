@@ -171,9 +171,10 @@ public class WeightCalculation {
         return partitions;
     }
 
-    public static void calculateWeight(HashMap<String, GraphNode> nodes, String partitionSuffix) {
+    public static HashMap<String, PartitionObject> calculateWeight(HashMap<String, GraphNode> nodes, String partitionSuffix) {
         Collection<GraphNode> sortedNodes = GraphNodeAlgorithms.topologicalSort(nodes.values());
         String partitionString = PARTITION_WEIGHT_OBJECT + partitionSuffix;
+        HashMap<String, PartitionObject> partitionWeight = new HashMap<>();
 
         sortedNodes.forEach(n -> System.out.printf("%s ", n.getValue(NAME)));
         System.out.println();
@@ -187,6 +188,9 @@ public class WeightCalculation {
 
         for (GraphNode node : nodes.values()) {
             WeightObject obj = (WeightObject) node.getValue(partitionString);
+            if (!partitionWeight.containsKey(obj.partition)) {
+                partitionWeight.put(obj.partition, new PartitionObject());
+            }
             obj.intermediateWeight = (Integer) node.getValue(ORIG_WEIGHT);
             obj.finalWeight = 0;
         }
@@ -200,6 +204,7 @@ public class WeightCalculation {
             WeightObject obj = (WeightObject) node.getValue(partitionString);
             int weightToPropagate = obj.intermediateWeight;
             obj.intermediateWeight = 0;
+            PartitionObject fromPartiton = partitionWeight.get(obj.partition);
 
             // BFS in partition and add weightToPropagate to finalWeight
             // add weightToPropagate to intermediateWeight when crossing partition
@@ -214,7 +219,8 @@ public class WeightCalculation {
                 WeightObject traversingObj = (WeightObject) todo.getValue(partitionString);
                 // move this line into the "same partition" block to count the unoptimized value.
                 traversed.add(todo);
-                if (traversingObj.partition.equals(obj.partition)) { // same partition
+                String targetPartition = traversingObj.partition;
+                if (targetPartition.equals(obj.partition)) { // same partition
                     traversingObj.finalWeight += weightToPropagate;
                     Iterator<GraphNode> children = todo.getChildren();
                     while (children.hasNext()) {
@@ -222,8 +228,12 @@ public class WeightCalculation {
                     }
                 } else { // different partition
                     traversingObj.intermediateWeight += weightToPropagate;
+                    // add weightToPropagate to the unicast count from current partition
+                    fromPartiton.unicastCounts.compute(targetPartition, (k, v) -> v == null ? weightToPropagate : (v + weightToPropagate));
                 }
             }
+
+            fromPartiton.multicastCount += obj.finalWeight;
             if (LOG.isLoggable(Level.FINE)) {
                 LOG.log(Level.INFO, "Propagated {0}, weight {1}", new Object[]{node.getValue(NAME), weightToPropagate});
                 nodeStatusPrinter.accept(null);
@@ -234,6 +244,7 @@ public class WeightCalculation {
             nodeStatusPrinter.accept(null);
         }
 
+        return partitionWeight;
     }
 
 }

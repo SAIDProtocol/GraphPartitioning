@@ -13,6 +13,7 @@ import java.io.PrintStream;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.junit.After;
@@ -208,7 +209,13 @@ public class WeightCalculationTest {
             pNodes.forEach(n -> System.out.printf("  %s%n", n.getValue(NAME)));
         });
         System.out.println("=============================");
-        calculateWeight(nodes, "P1");
+        HashMap<String, PartitionObject> partitionWeights = calculateWeight(nodes, "P1");
+        partitionWeights.forEach((name, partition) -> {
+            System.out.printf("Partition %s, multicast=%d, unicasts:%n", name, partition.multicastCount);
+            partition.unicastCounts.forEach((target, unicastCount) -> {
+                System.out.printf("  ->%s=%d%n", target, unicastCount);
+            });
+        });
     }
 
     @Test
@@ -252,8 +259,26 @@ public class WeightCalculationTest {
         });
         System.out.printf("Links:%d%n", count.get());
         System.out.println("=============================");
-        calculateWeight(nodes, partitionSuffix);
-
+        HashMap<String, PartitionObject> partitionWeights = calculateWeight(nodes, "P1");
+        partitionWeights.forEach((name, partition) -> {
+            System.out.printf("Partition %s, multicast=%d, unicasts:%n", name, partition.multicastCount);
+            partition.unicastCounts.forEach((target, unicastCount) -> {
+                System.out.printf("  ->%s=%d%n", target, unicastCount);
+            });
+        });
     }
 
+//    @Test
+//    public void test3() {
+//        HashMap<String, Integer> values = new HashMap<>();
+//        values.put("A", 234);
+//        int r = 3;
+//        BiFunction<? super String, ? super Integer, ? extends Integer> f = (k, v) -> v == null ? r : (v + r);
+//        values.compute("A", f);
+//        values.compute("B", f);
+//        values.forEach((k, v) -> System.out.printf("%s:%d%n", k, v));
+//        values.compute("A", f);
+//        values.compute("B", f);
+//        values.forEach((k, v) -> System.out.printf("%s:%d%n", k, v));
+//    }
 }
